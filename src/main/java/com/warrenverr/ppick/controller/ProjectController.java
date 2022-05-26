@@ -4,10 +4,10 @@ import com.warrenverr.ppick.dto.ProjectDto;
 import com.warrenverr.ppick.dto.UserDto;
 import com.warrenverr.ppick.form.ProjectApplyForm;
 import com.warrenverr.ppick.form.ProjectForm;
-import com.warrenverr.ppick.jwt.JwtTokenUtil;
 import com.warrenverr.ppick.model.Project;
 import com.warrenverr.ppick.service.ProjectService;
 import com.warrenverr.ppick.service.UserService;
+import com.warrenverr.ppick.jwt.JwtTokenUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -23,10 +23,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
+import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/project")
+@RequestMapping("/api/project")
 public class ProjectController {
 
     private final UserService userService;
@@ -70,32 +71,39 @@ public class ProjectController {
 
     //프로젝트 전체 리스트
     @GetMapping("/list")
-
-    public ResponseEntity<?> list(@RequestParam(value = "page", defaultValue = "0") int page,
+    public ResponseEntity<?> listByPageAndKeyword(@RequestParam(value = "page", defaultValue = "0") int page,
                                   @RequestParam(value = "keyword", defaultValue = "") String keyword) {
 
-        Page<ProjectDto> paging = this.projectService.getList(page, keyword);
+        Page<ProjectDto> paging = this.projectService.getListByPageAndKeyword(page, keyword);
         return new ResponseEntity<>(paging.getContent(), HttpStatus.OK);
     }
+
+    @GetMapping("/listBySkill")
+    public ResponseEntity<?> listBySkill(@RequestParam(value = "skill") String skill) {
+        List<ProjectDto> projectDtoList = this.projectService.getListBySkill(skill);
+        return new ResponseEntity<>(projectDtoList, HttpStatus.OK);
+    }
+
+
 
     //프로젝트 상세 보기
     @GetMapping(value = "/detail/{id}")
     public ResponseEntity<?> detail(@PathVariable("id") Integer id) {
-        ProjectDto projectDto = this.projectService.getProject(id);
+        ProjectDto projectDto = this.projectService.getProjectByPid(id);
         return new ResponseEntity<>(projectDto, HttpStatus.OK);
     }
 
 
     @PostMapping("/write")
-    public ResponseEntity<String> projectCreate(@Valid @RequestBody ProjectForm projectForm, HttpServletRequest request, BindingResult bindingResult) {
+    public ResponseEntity<?> projectCreate(@Valid @RequestBody ProjectForm projectForm, HttpServletRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             return new ResponseEntity<>("FAIL", HttpStatus.BAD_REQUEST);
         }
 
 
-        String snsid = decodeJWT(request);
-        UserDto userDto = this.userService.loginBySnsid(snsid);
-
+        /*String snsid = "ㄴㅅ"*//*decodeJWT(request)*//*;
+        UserDto userDto = this.userService.loginBySnsid(snsid);*/
+        UserDto userDto = null;
 //        if (userDto == null) {
 //            return new ResponseEntity<>("FAIL", HttpStatus.UNAUTHORIZED);
 //        }
@@ -106,25 +114,25 @@ public class ProjectController {
 
     //프로젝트 수정
     @GetMapping("/modify/{id}")
-    public String projectModify(ProjectForm projectForm, @PathVariable("id") Integer id, HttpServletRequest request) {
+    public ResponseEntity<?> projectModify(@PathVariable("id") Integer id, HttpServletRequest request) {
 
-        ProjectDto projectDto = this.projectService.getProject(id);
+        ProjectDto projectDto = this.projectService.getProjectByPid(id);
         UserDto userDto = getUserSession(request);
-
+        ProjectForm projectForm;
         projectForm = of(projectDto);
         projectForm.setMainTask(projectDto.getRecruit().getMainTask());
         projectForm.setSubTask(projectDto.getRecruit().getSubTask());
         projectForm.setRecruitment(projectDto.getRecruit().getRecruitment());
 
-        return "project_form";
+        return new ResponseEntity<>(projectForm, HttpStatus.OK);
     }
 
     @PutMapping("/modify/{id}")
-    public ResponseEntity<String> projectModify(@Valid @RequestBody ProjectForm projectForm, BindingResult bindingResult,
+    public ResponseEntity<?> projectModify(@Valid @RequestBody ProjectForm projectForm, BindingResult bindingResult,
                                                 @PathVariable("id") Integer id, HttpServletRequest request) {
 
         UserDto userDto = getUserSession(request);
-        ProjectDto projectDto = this.projectService.getProject(id);
+        ProjectDto projectDto = this.projectService.getProjectByPid(id);
 
         if (bindingResult.hasErrors()) {
             return new ResponseEntity<>("FAIL", HttpStatus.BAD_REQUEST);
@@ -142,9 +150,9 @@ public class ProjectController {
 
     //프로젝트 삭제
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> projectDelete(@PathVariable("id") Integer id, HttpServletRequest request) {
+    public ResponseEntity<?> projectDelete(@PathVariable("id") Integer id, HttpServletRequest request) {
 
-        ProjectDto projectDto = this.projectService.getProject(id);
+        ProjectDto projectDto = this.projectService.getProjectByPid(id);
         UserDto userDto = getUserSession(request);
 
 //        if(!projectDto.getAuthor().getEmail().equals(userDto.getEmail())) {
@@ -158,36 +166,24 @@ public class ProjectController {
 
     //프로젝트 추천 누르기
     @GetMapping("/like/{id}")
-    public ResponseEntity<String> projectLike(@PathVariable("id") Integer id, HttpServletRequest request) {
+    public ResponseEntity<?> projectLike(@PathVariable("id") Integer id, HttpServletRequest request) {
 
-        ProjectDto projectDto = this.projectService.getProject(id);
+        ProjectDto projectDto = this.projectService.getProjectByPid(id);
         UserDto userDto = getUserSession(request);
 
-        if (userDto == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "좋아요 권한이 없습니다.");
-        }
+//        if (userDto == null) {
+//            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "좋아요 권한이 없습니다.");
+//        }
 
-        this.projectService.like(projectDto, userDto);
-        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+        projectDto = this.projectService.like(projectDto, userDto);
+        return new ResponseEntity<>(projectDto, HttpStatus.OK);
     }
 
     //프로젝트 신청
-    @GetMapping("/ppick/{id}")
-    public String projectApply(@ModelAttribute("sns_id") String sns_id,ProjectApplyForm projectApplyForm, @PathVariable Integer id, HttpServletRequest request) {
-        ProjectDto projectDto = this.projectService.getProject(id);
-        UserDto userDto = this.userService.getUser(sns_id);
-
-        if (userDto == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "프로젝트 신청 권한이 없습니다.");
-        }
-
-        return "projectApply_form";
-    }
-
     @PostMapping("/ppick/{id}")
-    public void projectApply(@ModelAttribute("sns_id") String sns_id, @PathVariable("id") Integer id, @Valid @RequestBody ProjectApplyForm projectApplyForm, BindingResult bindingResult, HttpServletRequest request) {
-        ProjectDto projectDto = this.projectService.getProject(id);
-        UserDto userDto = this.userService.getUser(sns_id);
+    public ResponseEntity<?> projectApply(@PathVariable("id") Integer id, @Valid @RequestBody ProjectApplyForm projectApplyForm, BindingResult bindingResult, HttpServletRequest request) {
+        ProjectDto projectDto = this.projectService.getProjectByPid(id);
+        UserDto userDto = getUserSession(request);
         /*if(bindingResult.hasErrors()) {
             return "project_form";
         }
@@ -198,6 +194,7 @@ public class ProjectController {
             }
         }*/
         projectService.apply(projectDto, userDto, projectApplyForm);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
     }
 
 }

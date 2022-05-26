@@ -1,3 +1,4 @@
+/*
 package com.warrenverr.ppick.jwt;
 
 import com.warrenverr.ppick.dto.UserDto;
@@ -22,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin
 public class JwtAuthenticationController {
 
-   /* @Autowired
+    @Autowired
     private AuthenticationManager authenticationManager;
 
     @Autowired
@@ -53,5 +54,5 @@ public class JwtAuthenticationController {
             throw new Exception("INVALID_CREDENTIALS", e);
         }
     }
-*/
-}
+
+}*/

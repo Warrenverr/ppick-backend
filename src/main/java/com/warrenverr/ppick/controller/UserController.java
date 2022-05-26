@@ -8,7 +8,6 @@ import com.warrenverr.ppick.dto.ProjectDto;
 import com.warrenverr.ppick.dto.UserDto;
 import com.warrenverr.ppick.form.UserCreateForm;
 import com.warrenverr.ppick.jwt.JwtTokenUtil;
-import com.warrenverr.ppick.model.Project;
 import com.warrenverr.ppick.service.ProjectService;
 import com.warrenverr.ppick.service.UserService;
 import lombok.Getter;
@@ -30,7 +29,6 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -42,8 +40,8 @@ import java.util.List;
 @Getter
 @Setter
 @RequiredArgsConstructor
-@RequestMapping("/user")
-@Controller
+@RequestMapping("/api/user")
+@RestController
 @ResponseBody
 public class UserController {
 
@@ -302,7 +300,7 @@ public class UserController {
 
     @PostMapping("/approve/{id}")
     public ResponseEntity<?> projectApprove(@RequestParam(value = "sns_id") String sns_id, @RequestParam(value = "projectId") Integer projectId, @PathVariable("id") Integer id, HttpServletRequest request) {
-        ProjectDto projectDto = this.projectService.getProject(projectId);
+        ProjectDto projectDto = this.projectService.getProjectByPid(projectId);
         UserDto userDto = this.userService.getUser(sns_id);
         this.userService.approve(projectDto, id);
         return new ResponseEntity<>(projectDto, HttpStatus.OK);
@@ -313,4 +311,10 @@ public class UserController {
 
     //이메일 온거 수락버튼 만들기
 
+    @GetMapping("/list")
+    public ResponseEntity<?> list() {
+
+        List<UserDto> userList = userService.findAllUser();
+        return new ResponseEntity<>(userList, HttpStatus.OK);
+    }
 }

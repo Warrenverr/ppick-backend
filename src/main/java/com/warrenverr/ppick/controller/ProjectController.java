@@ -173,9 +173,9 @@ public class ProjectController {
 
     //프로젝트 신청
     @GetMapping("/ppick/{id}")
-    public String projectApply(ProjectApplyForm projectApplyForm, @PathVariable Integer id, HttpServletRequest request) {
+    public String projectApply(@ModelAttribute("sns_id") String sns_id,ProjectApplyForm projectApplyForm, @PathVariable Integer id, HttpServletRequest request) {
         ProjectDto projectDto = this.projectService.getProject(id);
-        UserDto userDto = this.getUserSession(request);
+        UserDto userDto = this.userService.getUser(sns_id);
 
         if (userDto == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "프로젝트 신청 권한이 없습니다.");
@@ -185,9 +185,9 @@ public class ProjectController {
     }
 
     @PostMapping("/ppick/{id}")
-    public void projectApply(@PathVariable("id") Integer id, @Valid @RequestBody ProjectApplyForm projectApplyForm, BindingResult bindingResult, HttpServletRequest request) {
+    public void projectApply(@ModelAttribute("sns_id") String sns_id, @PathVariable("id") Integer id, @Valid @RequestBody ProjectApplyForm projectApplyForm, BindingResult bindingResult, HttpServletRequest request) {
         ProjectDto projectDto = this.projectService.getProject(id);
-        UserDto userDto = getUserSession(request);
+        UserDto userDto = this.userService.getUser(sns_id);
         /*if(bindingResult.hasErrors()) {
             return "project_form";
         }

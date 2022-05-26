@@ -8,6 +8,7 @@ import com.warrenverr.ppick.dto.ProjectDto;
 import com.warrenverr.ppick.dto.UserDto;
 import com.warrenverr.ppick.form.UserCreateForm;
 import com.warrenverr.ppick.jwt.JwtTokenUtil;
+import com.warrenverr.ppick.model.Project;
 import com.warrenverr.ppick.service.ProjectService;
 import com.warrenverr.ppick.service.UserService;
 import lombok.Getter;
@@ -15,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -27,10 +30,14 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 
 @Getter
 @Setter
@@ -54,16 +61,13 @@ public class UserController {
 
     private final ProjectService projectService;
 
-    public UserDto getUserSession(HttpServletRequest request) {
-        HttpSession session = request.getSession();
-        UserDto userDto = (UserDto) session.getAttribute("userInfo");
-
-        return userDto;
-    }
-
     @GetMapping("/signup")
-    public String signup(UserCreateForm userCreateForm) {
-        return "signup_form";
+    public void signup(UserCreateForm userCreateForm, HttpServletRequest request, HttpServletResponse response) {
+        try {
+            response.sendRedirect("/mypage");
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @PostMapping("/signup")
@@ -96,7 +100,7 @@ public class UserController {
     }
 
     @RequestMapping("/auth/GitHub_login")
-    public ResponseEntity<?> GitHubLogin(@ModelAttribute("code") String code, HttpServletRequest request, UserCreateForm userCreateForm, Model model, BindingResult bindingResult) {
+    public ResponseEntity<?> GitHubLogin(@RequestParam(value = "code") String code, HttpServletRequest request, HttpServletResponse response, UserCreateForm userCreateForm, Model model, BindingResult bindingResult) {
         String token = null;
         UserDto userDto = null;
         GitHubAPI githubAPI = new GitHubAPI();
@@ -112,9 +116,10 @@ public class UserController {
         } catch(DataNotFoundException e1) {
             System.out.println("이게 나오면 첫 깃허브 로그인 성공");
             try {
-                setSnsid(snsid);
+                return new ResponseEntity<>(snsid, HttpStatus.BAD_REQUEST);
+                /*setSnsid(snsid);
                 setEmail(email);
-                setNickname(nickname);
+                setNickname(nickname);*/
             }catch(DataIntegrityViolationException e2) {
                 e2.printStackTrace();
                 bindingResult.reject("signupFailed", "이미 등록된 사용자 입니다.");
@@ -132,7 +137,8 @@ public class UserController {
 
 
     @RequestMapping("/auth/Google_login")
-    public UserDto GoogleLogin(@ModelAttribute("code") String code, HttpServletRequest request, UserCreateForm userCreateForm, Model model, BindingResult bindingResult) {
+    public ResponseEntity<?> GoogleLogin(@ModelAttribute("code") String code, HttpServletRequest request, UserCreateForm userCreateForm, Model model, BindingResult bindingResult) {
+        String token = null;
         UserDto userDto = null;
         GoogleAPI googleAPI = new GoogleAPI();
         System.out.println("Google code = " + code);
@@ -147,8 +153,10 @@ public class UserController {
         String nickname = "";
         try {
             userDto = this.userService.loginBySnsid(snsid);
+            token = jwtTokenUtil.generateToken(snsid);
         }catch(DataNotFoundException e1) {
-            System.out.println("이게 나오면 첫 구글 로그인 성공");
+            return new ResponseEntity<>(snsid, HttpStatus.BAD_REQUEST);
+            /*System.out.println("이게 나오면 첫 구글 로그인 성공");
             try {
                 setSnsid(snsid);
                 setEmail(email);
@@ -156,23 +164,23 @@ public class UserController {
             }catch(DataIntegrityViolationException e2) {
                 e2.printStackTrace();
                 bindingResult.reject("signupFailed", "이미 등록된 사용자 입니다.");
-                return userDto;
             }catch(Exception e3) {
                 e3.printStackTrace();
                 bindingResult.reject("signupFailed", e3.getMessage());
-                return userDto;
-            }
+            }*/
         }
 
         session.setAttribute("userInfo", userDto);
         model.addAttribute("userInfo", userDto);
-        return userDto;
+        return new ResponseEntity<>(token, HttpStatus.OK);
     }
 
 
+    //카카오
     @RequestMapping("/auth/Kakao_login")
-    public UserDto login(@ModelAttribute("code") String code, HttpServletRequest request, UserCreateForm userCreateForm, Model model, BindingResult bindingResult) {
+    public ResponseEntity<?> Kakaologin(@RequestParam(value = "code") String code, HttpServletRequest request, HttpServletResponse response, UserCreateForm userCreateForm, Model model, BindingResult bindingResult) {
         UserDto userDto = null;
+        String token = null;
         KakaoAPI kakaoAPI = new KakaoAPI();
         System.out.println("Kakao code = " + code);
         String access_Token = kakaoAPI.getAccessTocken(code);
@@ -185,33 +193,32 @@ public class UserController {
         String email = kakaoInfo.get("email").toString();
         String snsid = kakaoInfo.get("sns_id").toString();
         String nickname = kakaoInfo.get("nickName").toString();
-
+        HttpHeaders headers = null;
 
         try {
             userDto = this.userService.loginBySnsid(snsid);
+            token = jwtTokenUtil.generateToken(snsid);
         }catch(DataNotFoundException e1) {
             System.out.println("이게 나오면 첫 카카오 로그인 성공");
             try {
                 setSnsid(snsid);
                 setNickname(nickname);
                 setEmail(email);
-
                 //회원가입 폼으로 이동 해주기  현재 그냥 임의값 넣었음
                 //signup(userCreateForm);
             }catch(DataIntegrityViolationException e2) {
                 e2.printStackTrace();
                 bindingResult.reject("signupFailed", "이미 등록된 사용자 입니다.");
-                return userDto;
             }catch(Exception e3) {
                 e3.printStackTrace();
                 bindingResult.reject("signupFailed", e3.getMessage());
-                return userDto;
             }
         }
 
-        session.setAttribute("userInfo", userDto);
-        return userDto;
+        return new ResponseEntity<>(token, HttpStatus.OK);
     }
+
+    //사용 안함
     @RequestMapping("/image")
     public void uploadImage(HttpServletRequest request, MultipartFile multi,  UserCreateForm userCreateForm) {
         //String imageName = userCreateForm.getImage();
@@ -222,6 +229,7 @@ public class UserController {
 
     }
 
+    //사용 안함
     private void authenticate(String username, String password) throws Exception {
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
@@ -232,33 +240,6 @@ public class UserController {
         }
     }
 
-/*
-    @RequestMapping("/HardCoding_kakaoLogin_getSession")
-    public UserDto emailTest(HttpServletRequest request,Model model) {
-        UserDto userDto = this.userService.loginBySnsId("dbswl@naver.com");
-        HttpSession session = request.getSession();
-        session.setAttribute("userInfo", userDto);
-        return userDto;
-    }*/
-
-    /*@RequestMapping(
-            value = "/login",
-            method = RequestMethod.POST,
-            produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public ResponseEntity<?> login(final HttpServletRequest req, final HttpServletResponse res, @Valid @RequestBody Token.Request request) throws Exception {
-        UserDto userDto = this.userService.loginBySnsid(request.getId());
-        Authentication authentication = new UserAuthentication(request.getId(), null, null);
-        String token = JwtTokenProvider.generateToken(authentication);
-
-
-
-        Token.Response response = Token.Response.builder().token(token).build();
-
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }*/
-
-
     @RequestMapping("/JustLogin")
     public UserDto JustLogin(@ModelAttribute("sns_id") String sns_id, HttpServletRequest request,Model model) {
         UserDto userDto = this.userService.loginBySnsid(sns_id);
@@ -267,11 +248,32 @@ public class UserController {
         return userDto;
     }
 
-    @RequestMapping("/info")
-    public UserDto selectInfo(Model model, HttpServletRequest request) {
-        HttpSession session = request.getSession();
-        UserDto userDto = (UserDto) session.getAttribute("userInfo");
-        return userDto;
+    @RequestMapping("/detail")
+    public ResponseEntity<?> selectInfo(@RequestParam(value = "sns_id") String sns_id, Model model, HttpServletRequest request) {
+
+        UserDto userDto = this.userService.getUser(sns_id);
+        return new ResponseEntity<>(userDto, HttpStatus.OK);
+    }
+
+    @RequestMapping("/list")
+    public ResponseEntity<?> list(@RequestParam(value = "page", defaultValue = "0") int page,
+                                  @RequestParam(value = "keyword", defaultValue = "") String keyword) {
+        Page<UserDto> paging = this.userService.getUserList(page, keyword);
+        return new ResponseEntity<>(paging.getContent(), HttpStatus.OK);
+    }
+
+    //내가 신청한 프로젝트
+    @RequestMapping("/appliedProjectList")
+    public ResponseEntity<?> appliedProjectList(@RequestParam(value = "sns_id") String sns_id) {
+        List<ProjectDto> projectDtoList = this.userService.appliedProjectList(sns_id);
+        return new ResponseEntity<>(projectDtoList, HttpStatus.OK);
+    }
+
+    //내가 진행 중인 프로젝트
+    @RequestMapping("/progressingProjectList")
+    public ResponseEntity<?> progressingProjectList(@RequestParam(value = "sns_id") String sns_id) {
+        List<ProjectDto> projectDtoList = this.userService.progressProjectList(sns_id);
+        return new ResponseEntity<>(projectDtoList, HttpStatus.OK);
     }
 
     @PostMapping("/modify")
@@ -297,21 +299,18 @@ public class UserController {
         this.userService.delete(userDto);
         return "mainPage";
     }
-    @GetMapping("/logout")
-    public String logout(HttpServletRequest request) {
-        HttpSession session = request.getSession();
-        session.invalidate();
-
-        return "mainPage";
-    }
 
     @PostMapping("/approve/{id}")
-    public String projectApprove(@PathVariable("id") Integer id, HttpServletRequest request) {
-        Integer projectId = Integer.valueOf(request.getParameter("projectId"));
+    public ResponseEntity<?> projectApprove(@RequestParam(value = "sns_id") String sns_id, @RequestParam(value = "projectId") Integer projectId, @PathVariable("id") Integer id, HttpServletRequest request) {
         ProjectDto projectDto = this.projectService.getProject(projectId);
-        UserDto userDto = getUserSession(request);
+        UserDto userDto = this.userService.getUser(sns_id);
         this.userService.approve(projectDto, id);
-        return String.format("redirect:/project/detail/%s", id);
+        return new ResponseEntity<>(projectDto, HttpStatus.OK);
     }
+
+
+    //메일보내기 만들기
+
+    //이메일 온거 수락버튼 만들기
 
 }

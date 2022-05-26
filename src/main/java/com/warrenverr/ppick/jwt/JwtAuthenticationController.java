@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin
 public class JwtAuthenticationController {
 
-    @Autowired
+   /* @Autowired
     private AuthenticationManager authenticationManager;
 
     @Autowired
@@ -53,5 +53,5 @@ public class JwtAuthenticationController {
             throw new Exception("INVALID_CREDENTIALS", e);
         }
     }
-
+*/
 }

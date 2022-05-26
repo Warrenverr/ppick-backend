@@ -35,7 +35,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.httpBasic().disable();
         httpSecurity.csrf().ignoringAntMatchers("/h2-console/**").disable()
-                .authorizeRequests().antMatchers("/user/auth/**", "/h2-console/**").permitAll().anyRequest().authenticated()
+                .authorizeRequests().antMatchers("/user/auth/**", "/h2-console/**", "/**").permitAll().anyRequest().authenticated()
                 .and().exceptionHandling().authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 .and().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and().headers().addHeaderWriter(new XFrameOptionsHeaderWriter(XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN))

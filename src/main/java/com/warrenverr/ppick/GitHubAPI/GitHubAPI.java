@@ -29,7 +29,7 @@ public class GitHubAPI {
             StringBuilder sb = new StringBuilder();
             sb.append("client_id=Iv1.e91f1c5595cd0b04");
             sb.append("&client_secret=26e6cb7503ec8aa813bbf3d2013b4307c4d458f1");
-            sb.append("&redirect_uri=http://localhost:8080/user/auth/GitHub_login");
+            sb.append("&redirect_uri=http://localhost:3000/user/auth/GitHub_login");
             sb.append("&code=" + authorize_code);
             sb.append("&state=state");
             bw.write(sb.toString());
@@ -92,7 +92,7 @@ public class GitHubAPI {
             String nickname = element.getAsJsonObject().get("login").getAsString();
             String email = null;
             try {
-                 email = element.getAsJsonObject().get("email").getAsString();
+                email = element.getAsJsonObject().get("email").getAsString();
             }catch (UnsupportedOperationException e) {
                 email = "";
             }
